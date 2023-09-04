@@ -58,4 +58,11 @@ canvas是一个特殊的元素，他其实是**相当于两个部分的合集**�
 | lineWidth               | 指定了线段的宽度，是个非负非无穷的值                   |
 | lineJoin                | 指定了两个线段的交汇处的绘制方式                       |
 | miterLimit              | 告诉浏览器如何绘制miter形式的线段焦点                  |
+| shadowBlur              | 决定浏览器如何延伸阴影效果                             |
+| shadowColor             | 告诉浏览器的阴影颜色                                   |
+| shadowOffsetX           | 指定阴影效果的水平方向偏移量                           |
+| shadowOffsetY           | 指定阴影效果的垂直方向偏移量                           |
+| strokeStyle             | 指定了对路径描边时的颜色，可以是渐变或图案             |
+| textAlign               | 决定了画文本的水平对齐方式                             |
+| textBaseline            | 决定了画文本的垂直对齐方式                             |
 
