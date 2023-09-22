@@ -332,5 +332,116 @@ function effect () {
 
 #### 4.2响应式数据的基本实现
 
+```js
+const obj = { text: 'hello word' }
+function effect () {
+	document.body.innerText = obj.text
+}
+```
 
+通过观察上述代码可以看到响应式数据主要会发生两个事情
+
+- 副作用函数effect执行会读取响应式数据的值
+- 响应式数据的值修改了，会触发document.body.innerText的设置操作
+
+要实现响应式数据，我们就需要对一个数据的读取和设置进行拦截操作，当我们读区响应式数据obj.text时，我们可以把副作用函数effect存储到一个桶里，如图4-1所示
+
+<img src="assets/image-20230922143241217.png" alt="image-20230922143241217" style="zoom:50%;" />
+
+接着当设置obj.text时，再把副作用函数从effect桶里拿出来并执行即可，如图4-2
+
+<img src="assets/image-20230922143342375.png" alt="image-20230922143342375" style="zoom:50%;" />
+
+在这个响应式的过程中有三个比较重要的元素：
+
+- 被读取的代理对象obj
+- 被操作的字段text
+- 被执行的副作用函数effect
+
+明确了这个关系，那我们就可以把三者联系起来建立如下的关系
+
+<img src="assets/image-20230922144401077.png" alt="image-20230922144401077" style="zoom:50%;" />
+
+其中为了避免混淆effect，我们之后称effect为注册副作用函数的一个函数，如果一个字段有两个对应的副作用函数
+
+```js
+effect(function effectFn1 () {
+  obj.text
+})
+effect(function effectFn2 () {
+  obj.text
+})
+```
+
+那么关系如下
+
+<img src="assets/image-20230922144558338.png" alt="image-20230922144558338" style="zoom:50%;" />
+
+如果一个副作用函数读取了两个字段
+
+```js
+effect(function effectFn () {
+  obj.text1
+  obj.text2
+})
+```
+
+那么关系如下
+
+<img src="assets/image-20230922144702794.png" alt="image-20230922144702794" style="zoom:50%;" />
+
+明确了这个联系的树形结构，那么我们就可以开始设计我们桶的数据结构了，为了能有一一对应的关系，所以我们采用WeakMap来作为桶的数据结构
+
+```js
+// 当前的副作用
+let activeEffect = null
+// 注册副作用的函数
+const effect = ( fn ) => {
+  activeEffect = fn
+  activeEffect()
+}
+// 储存副作用函数的桶
+const bucket = new WeakMap ()
+const data = { text: 'hello Word' }
+const obj = new Proxy ( data, {
+  // 拦截读取操作
+  // 1、看桶中是否有这个target绑定的字段集合，没有创建
+  // 2、看字段集合里有没有这个字段，没有创建
+  // 3、给这个字段副作用集合添加新的副作用
+  get (target, key) {
+    // 在桶中添加依赖关系
+    track(target, key)
+    return target[key]
+  },
+  // 拦截操作
+  // 1、设置新值
+  // 2、从桶中取出target对应的字段集合
+  // 3、从字段集合中取出副作用集合
+  // 4、执行所有的副作用
+  set (target, key, newValue) {
+    // 根据依赖关系从桶中取出副作用执行
+    target[key] = newValue
+    trigger(target, key)
+  }
+})
+const track = (target, key) => {
+  if (!activeEffect) return
+  // 1、看桶中是否有这个target绑定的字段集合，没有创建
+  let depMap = bucket.get(target)
+  if (!depMap) bucket.set(target, (depMap = new Map ()))
+  // 2、看字段集合里有没有这个字段，没有创建
+  let deps = depMap.get(key)
+  if(!deps) depMap.set(key, (deps = new Set ()))
+  // 3、给这个字段副作用集合添加新的副作用
+  deps.add(activeEffect)
+}
+const trigger = (target, key) => {
+  const depMap = bucket.get(target)
+  if (!depMap) return
+  const deps = depMap.get(key)
+  deps && deps.forEach(fn => fn())
+}
+```
+
+#### 4.3分之切换与cleanup
 
