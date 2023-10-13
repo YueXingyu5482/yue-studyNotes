@@ -443,5 +443,96 @@ const trigger = (target, key) => {
 }
 ```
 
-#### 4.3分之切换与cleanup
+#### 4.3分支切换与cleanup
+
+首先我们来明确一下副作用依赖关系的收集过程，整体可以分为3个部分，副作用函数开始执行，副作用函数执行，副作用函数执行完毕副作用函数执行的过程形成了依赖关系，因为在这个时间段会触发响应式数据的get拦截，从而将副作用函数的key和副作用函数进行绑定
+
+
+
+我们再来聊一下分支切换
+
+```js
+const data = {
+  ok: true,
+  text: 'hello word'
+}
+const obj = new Proxy(data,{/* ...*/})
+effect(() => {
+  document.body.innerText = obj.ok ? obj.text : 'not'
+})
+```
+
+如上代码所示，在obj.ok为true时，obj的属性ok和text都绑定了该副作用函数，也就是说，ok和text的值改变都会再次执行该副作用函数
+
+<img src="assets/image-20231013152657769.png" alt="image-20231013152657769" style="zoom:100%;" />
+
+
+
+但是当obj的属性ok为false时，应当只有ok绑定该副作用函数，这个就是分支切换，
+
+![image-20231013152757983](assets/image-20231013152757983.png)
+
+我们之前实现的响应式结构并不能实现这一过程，在之前的响应式结构中，如果第一次obj.ok为true会使得ok和text的属性都绑定上该副作用函数，当obj.ok为false的时候不会删除掉obj.text的绑定，其实换个角度去想，如果每一次副作用函数的执行都删除以前的依赖关系，重新绑定这个问题就解决了，因为obj.ok为true时，副作用函数的执行会读取ok和text两个熟悉的值，而依赖的收集就发生在读取值的过程，所以两个属性都绑定上了，当ob j.ok的值是false时，只会读取ok的值，那就只有ok和该函数绑定上了，所以当副作用再次执行时，我们只需要在开始执行前先将之前和这个副作用函数有关系的依赖关系都清除，这样在他执行时会重新绑定依赖关系。
+
+明确了我们要做的事情，在副作用函数开始执行前删除之前的依赖关系，为了做这个事情，我们需要在执行前得到这个依赖关系，依赖关系的收集过程发生在响应式的get阶段，所以我们要先去get阶段将依赖的绑定双向收集，代码改造如下
+
+```js
+const track = (target, key) => {
+  if (!activeEffect) return
+  // 1、看桶中是否有这个target绑定的字段集合，没有创建
+  let depMap = bucket.get(target)
+  if (!depMap) bucket.set(target, (depMap = new Map ()))
+  // 2、看字段集合里有没有这个字段，没有创建
+  let deps = depMap.get(key)
+  if(!deps) depMap.set(key, (deps = new Set ()))
+  // 3、给这个字段副作用集合添加新的副作用
+  deps.add(activeEffect)
+  activeEffect.deps.push(deps) //分支切换新增
+}
+```
+
+之后我们要在副作用函数执行前去清空之前的依赖关系，代码如下
+
+```js
+function effect (fn) {
+  activeEffect = () => {
+    cleanup(activeEffect)
+    fn()
+  }
+  activeEffect.deps = []
+  activeEffect()
+}
+function cleanup (effectFn) {
+  for(let i=0; i<effectFn.deps.length; i++){
+    const deps = effectFn.deps[i]
+    deps.delete(effectFn)
+  }
+  effectFn.deps = []
+}
+```
+
+在进行到这里我们已经解决了分支切换的问题，但我们执行会发现页面卡死了，这个问题主要是因为trigger函数的问题
+
+```js
+const trigger = (target, key) => {
+  const depMap = bucket.get(target)
+  if (!depMap) return
+  const deps = depMap.get(key)
+  deps && deps.forEach(fn => fn()) // 问题所在
+}
+```
+
+trigger函数中deps的forEach执行会出现死循环，是因为我们在副作用函数fn中的cleanup里把deps中的该项清除掉了，但是在执行阶段，响应式数据的get阶段触发又加了回来，以至于deps中不断的减和加，一直执行不完，我们只需要在deps遍历之前深拷贝一份，之后执行拷贝的这个deps就好了
+
+```js
+const trigger = (target, key) => {
+  const depMap = bucket.get(target)
+  if (!depMap) return
+  const deps = depMap.get(key)
+  const effectsToRun = new Set(deps) // 新增
+  effectsToRun.forEach(effectFn => effectFn()) // 新增
+}
+```
+
+#### 4.4嵌套的effect与effect栈
 
