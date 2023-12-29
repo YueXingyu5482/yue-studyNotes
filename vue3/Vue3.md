@@ -536,3 +536,88 @@ const trigger = (target, key) => {
 
 #### 4.4嵌套的effect与effect栈
 
+effect是可以发生嵌套行为的，例如
+
+```js
+effect(function effectFn1(){
+  effect(function effectFn2(){
+  })
+})
+```
+
+Vue的渲染函数（render）就是在一个effect中执行的，所以当组件发生嵌套的时候，effect就会发生嵌套行为
+
+```js
+const Foo = {
+  render() {
+    return <Bar />
+  }
+}
+const Bar = {
+  render() {
+    ......
+  }
+}
+```
+
+转化为effect就是
+
+```js
+effect(()=>{
+  Foo.render()
+  effect(()=>{
+    Bar.render()
+  })
+})
+```
+
+我们之前所写的代码是不支持嵌套结构的，原因很简单，因为我们只有一个全局变量activeEffect，在进入到第二个effect的时候，activeEffect的值会被替换掉，但是执行完毕后恢复不到之前的函数，可以用下面的例子实验一下
+
+```js
+const obj = new Proxy({foo:true,bar:true},{......})
+let temp1,temp2
+effect(function effectFn1(){
+  console.log('effectFn1')
+  effect(function effectFn2(){
+    console.log('effectFn2')
+    temp1 = obj.foo
+  })
+  temp2 = obj.bar
+})
+```
+
+当我们修改ob j.bar的值的时候，我们期望是effectFn1和effectFn2都执行一遍，但是最终的结果却是只执行了effectFn2，这个就是因为activeEffect在执行完effectFn2之后没有恢复到effectFn1，以至于bar在set环节绑定的activeEffect是effectFn2，处理方法也很简单，我们新增一个effect执行栈，让activeEffect始终指向最上方的effect，新增代码如下
+
+```js
+const effectStack = []
+function effect (fn) {
+ 	const effectFn = () =>{
+    clearup(effectFn)
+    activeEffect = effectFn
+    effectStack.push(effectFn)
+    fn()
+    effectStack.pop()
+    activeEffect = effectStack[effectStack.length-1]
+  }
+  effectFn.deps = []
+  effectFn()
+}
+```
+
+#### 4.5避免无限递归循环
+
+我们允许出现effect嵌套的时候就要注意一个问题，就是无限循环的问题，我们可能在effect触发的时候，一次性又触发了捕获和执行问题，例如obj.a++，这种变量自加可以看作为obj.a = obj.a + 1，这一过程会同时触发get和set，先是get拿到obj.a的值，再和一相加触发set，set触发副作用函数，这个副作用函数又触发了get和set，造成无限循环，避免这一过程可以考虑在set阶段执行副作用函数的时候判断，当前执行的副作用函数和触发的副作用函数是不是同一函数，以此来避免无限循环的问题
+
+```js
+function trigger(target, key) {
+  const depsMap = bucket.get(target)
+  const deps = depsMap.get(key)
+  if (!deps) return
+  const effectsToRun = new Set()
+  deps.forEach(dep => { // 新增
+    if (dep !== activeEffect) effectsToRun.add(dep)
+  })
+  effectsToRun.forEach(effect => effect())
+}
+```
+
