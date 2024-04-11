@@ -33,29 +33,24 @@ global等同于浏览器中的window，是node环境中的顶层全局对象，g
 - process
 
 - 获取进程(命令行)相关信息
-- cwd()
+  - cwd()
+    - 获取当前命令行的执行路径
 
-- 获取当前命令后的执行路径
+  - exit()
+    - 强制退出当前node进程，可以传入消息码作为参数
 
-- exit()
+  - argv
+    - 获取命令行中所写的全部参数
 
-- 强制退出当前node进程，可以传入消息码作为参数
+  - platform
+    - 获取当前的操作系统
 
-- argv
+  - kill()
+    - 杀死一个进程
 
-- 获取命令行中所写的全部参数
+  - env
+    - 获取环境变量
 
-- platform
-
-- 获取当前的操作系统
-
-- kill()
-
-- 杀死一个进程
-
-- env
-
-- 获取环境变量
 
 ## 二、模块化细节
 
@@ -266,18 +261,90 @@ fs模块的操作一般都为异步的，因为文件的读写是向网络请求
 - state(path)
 
   - 获取文件和目录的状态信息，可获取文件的创建修改时间以及大小
+
   - path要求是一个绝对路径
+
   - 属性信息
+
+    <img src="E:\study\yue-studyNotes\node\assets\image-20240411163726291.png" alt="image-20240411163726291" style="zoom:80%;" />
+
     - size 文件占用大小
     - atime 上次访问的时间
     - mtime 上次修改的时间
     - ctime 上次状态修改的时间
     - birthtime 文件生成的时间
     - birthtime 文件生成的时间
+
   - 原型链方法
+
     - isDirectory()   是否是文件夹
     -  isFile()    是否是文件 
 
-  <img src="E:\study\yue-studyNotes\node\assets\image-20240411163726291.png" alt="image-20240411163726291" style="zoom:80%;" />
+- readdir(path)
 
-  
+  - 获取文件夹内的文件和文件夹数组列表，数组中存的文件和文件夹的名称
+  - path要求是一个绝对路径
+
+- makdir(path)
+
+  - 创建一个文件夹
+  - path要求是一个绝对路径
+
+- unlink(path)
+
+  - 删除文件
+  - path要求是一个绝对路径
+
+### 4.2文件流
+
+流是数据的流动，从一个地方缓缓流动到另一个地方，**流是有方向的**
+
+#### 4.2.1为什么需要流？
+
+因为两端的数据规模不一致，例如硬盘到内存，硬盘中要读取的数据的大小可能远远大于内存，所以就需要流来一点一点获取
+
+两端数据处理速度能力不一致，也需要用到流来协助处理
+
+#### 4.2.1可读流
+
+> 数据从源头流向内存
+
+fs.createReadStream(path, options)
+
+- path要求是一个绝对路径
+- options
+  - encoding - 编码格式，默认为buffer
+  - start - 起始字节
+  - end - 结束字节
+  - highWaterMark - 每次读取的字节数量，默认为64*1024
+  - autoClose - 读完后是否自动关闭通道，默认为true
+- 返回一个ReadStream子类
+  - rs.on(事件名,  处理函数)
+    - 事件枚举
+    - open - 文件打开
+    - error - 文件读取报错
+    - close - 文件关闭触发
+      - 可通过rs.close手动关闭
+      - 文件读取完毕通道关闭也会触发
+    - data
+      - 没得到一部分流数据会触发一次
+      - 只有事件注册了之后才会开始进行数据读取
+    - end
+      - 数据读取完毕就会触发
+    - pause
+      - 读取通道暂停触发
+    - resurme
+      - 读取通道恢复触发
+  - rs.pause()
+    - 暂停读取
+    - 会触发pause事件
+  - rs.resurme()
+    - 恢复读取
+    - 会触发resurme事件
+
+
+
+#### 4.2.2可写流
+
+> 数据从内存流向源头
+
