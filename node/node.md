@@ -341,6 +341,10 @@ fs.createReadStream(path, options)
   - rs.resurme()
     - 恢复读取
     - 会触发resurme事件
+  - rs.pipe(WriteStream)
+    - 创建一个通道，将可写流和可读流连接起来
+    - WriteStream为一个可写流
+    - 返回值为WriteStream - 传入的参数
 
 
 
@@ -348,3 +352,83 @@ fs.createReadStream(path, options)
 
 > 数据从内存流向源头
 
+fs.createWriteStream(path,options)
+
+- path是一个绝对路径
+- options可选的选项
+  - flags - 操作文件的方式，a为新增
+  - encoding - 编码方式，默认为utf-8
+  - start - 起始字节
+  - highWaterMark - 每次写入的字节数量
+  - autoClose - 读完后是否自动关闭通道，默认为true
+- 返回一个WriteStream子类
+  - ws.on(事件名，处理函数)
+    - 事件枚举
+    - open
+    - error
+    - close
+    - dran
+      - 写入队列清空时会触发该事件
+  - ws.write(data)
+    - data
+      - 要求为字符串或者bufffer
+    - 会返回一个布尔值
+      - true表示写入通道没有排满，可以继续写入无需排队
+      - false表示写入通道排满了，需要排队
+  - ws.end(data)
+    - 关闭写入通道，可以传入data进行最后一次写入
+
+## 五、网络net模块
+
+net模块主要用于通信，可以进行进程间的IPC通信以及网络之间的TCP/IP通信
+
+### 5.1客户端
+
+net.createConnection(options)
+
+- options 客户端通道配置项
+  - host 服务端地址
+  - port 端口号 必须要
+- 返回一个socket对象是一个双工流（可读流、可写流）
+
+### 5.2服务端
+
+net.createServer()
+
+- 返回一个server对象
+
+server对象属性
+
+- server.listen(port)
+  - 监听一个端口
+- server.on(事件名,回调函数)
+  - listening - 在调用完server.listen(port)绑定端口后触发
+  - connection - 有客户端访问服务端简历新连接后触发
+    - 回调函数有内置参数socket，是一个双工流
+
+## 六、net模块的上层模块http模块
+
+http模块是net模块的封装，让我们不用去组装消息格式和关注socket处理
+
+### 6.1客服端
+
+http.request(url,[ options, callback])
+
+- url - 是一个http链接
+- options
+  - method - 请求方法
+- callback - 回调函数
+  - res 可读流为参数
+- 返回一个writeStreame可写流
+
+需要进行请求体的写入和关闭才可以正常的发送请求
+
+### 6.2服务端
+
+http.createServer(options, requestListener)
+
+- options 可选配置项
+- requestListener回调函数，有两个参数
+  - incomingMessage 一个可读流
+  - serverResponse 一个可写流
+- 返回http.server实例
