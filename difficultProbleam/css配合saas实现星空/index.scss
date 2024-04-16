@@ -1,0 +1,62 @@
+html {
+  height: 100%;
+  background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+  overflow: hidden;
+}
+.title {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: 300;
+  font-size: 50px;
+  letter-spacing: 10px;
+  background: linear-gradient(white, #38495a);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+@function create-shadow($n: 200) {
+  $shadow: 10vw 10vh white;
+  @for $i from 1 through $n {
+    $shadow: "#{$shadow}, #{random(100)}vw #{random(100)}vh white";
+  }
+  @return unquote($shadow);
+}
+$count: 1000;
+$duration: 400;
+@for $i from 1 through 3 {
+  $count: floor(calc($count / 2));
+  $duration: floor(calc($duration / 2));
+  @debug $duration;
+  .label#{$i} {
+    $size: #{$i}px;
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: $size;
+    height: $size;
+    background-color: white;
+    border-radius: 50%;
+    box-shadow: create-shadow($count);
+    animation: moveUp #{$duration}s linear infinite;
+    &::after {
+      content: "";
+      position: fixed;
+      left: 0;
+      top: 100vh;
+      width: inherit;
+      height: inherit;
+      background-color: inherit;
+      border-radius: inherit;
+      box-shadow: inherit;
+    }
+  }
+}
+
+@keyframes moveUp {
+  100% {
+    transform: translateY(-100vh);
+  }
+}
