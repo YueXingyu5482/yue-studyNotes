@@ -432,3 +432,9 @@ http.createServer(options, requestListener)
   - incomingMessage 一个可读流
   - serverResponse 一个可写流
 - 返回http.server实例
+
+132465
+
+## 七、事件循环
+
+在node中，事件循环的处理比较特殊，在运行完主线程代码后，会先去优先清空nextTick队列中的内容，然后是去执行Promise中的内容，后续会进行一个小循环，定时器、pill和check（setImmediate内容）
