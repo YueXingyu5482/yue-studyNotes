@@ -1,3 +1,7 @@
 {
-  "include": ["ts/**/*.ts"]
+  "include": ["ts/**/*.ts"],
+  "compilerOptions": {
+    "noImplicitAny": true,
+    "strict": true
+  }
 }
