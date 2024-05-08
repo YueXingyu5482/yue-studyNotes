@@ -102,5 +102,50 @@ function sum(a:number,b:number,c=0):number {
 function add<T>(a:T):T {
   return a
 }
+// 使用时
+add<string>('123')
+```
+
+#### 1.6对象字面量类型
+
+```ts
+let a:{
+  id:number,
+  name: string,
+  sax: '男'｜'女'
+}
+```
+
+#### 1.7自定义类型
+
+##### 1.7.1类型别名
+
+> 类型别名就是声明一个变量表示一个类型，方便类型的复用
+
+类型别名的书写格式为 type 类型别名 = 类型
+
+```ts
+type A = string
+let a: A
+```
+
+##### 1.7.2接口
+
+> 接口是面向对象的概念，一般用于定义对象类型
+
+接口书写格式为interface 接口名 {/\*属性名：属性类型\*/}
+
+#### 1.8交叉类型
+
+交叉类型就是将多个类型合并为一个类型
+
+```ts
+type a = {
+  id: number
+}
+type b = {
+  age: number
+}
+type c = a & b
 ```
 
